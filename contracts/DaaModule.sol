@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity >=0.7.0 <0.9.0;
 
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./Enum.sol";
 
 /// @title Safe Module DAA - A gnosis safe module to execute transactions to a trusted whitelisted address.
@@ -24,11 +23,9 @@ interface GnosisSafe {
 
 
 contract DaaModule {
-    using EnumerableSet for EnumerableSet.AddressSet;
 
     address payable public _whitelisted;
     GnosisSafe public _safe;
-    EnumerableSet.AddressSet private _spenders;
 
     event ExecuteTransfer(address indexed safe, address token, address from, address to, uint96 value);
     
@@ -45,8 +42,8 @@ contract DaaModule {
         uint96 amount
     ) 
         public 
-        isAuthorized(msg.sender)
     {
+        require(isAuthorized(msg.sender));
         // Transfer token
         transfer(_safe, token, _whitelisted, amount);
         emit ExecuteTransfer(address(_safe), token, msg.sender, _whitelisted, amount);
@@ -62,14 +59,12 @@ contract DaaModule {
         }
     }
 
-    modifier isAuthorized(address sender) {
-        address[] memory spenders = _safe.getOwners();
-        uint256 len = spenders.length;
+    function isAuthorized(address sender) internal view returns (bool isOwner){
+        address[] memory _owners = _safe.getOwners();
+        uint256 len = _owners.length;
         for (uint256 i = 0; i < len; i++) {
-            address spender = spenders[i];
-            _spenders.add(spender);
+            if (_owners[i]==sender) { isOwner = true;}
         }
-        require(_spenders.contains(sender), "Sender not authorized");
-        _;
+        require(isOwner, "Sender not authorized");
     }
 }
